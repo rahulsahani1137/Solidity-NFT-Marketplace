@@ -10,9 +10,9 @@ contract FundMe {
 
     uint256 public constant MINIMUM_USD = 5e18; // 5 USD (with 18 decimals)
 
-    address[] public funders;
     mapping(address funder => uint256 amountFunded)
-        public addressToAmountFunded;
+        private s_addressToAmountFunded;
+    address[] private s_funders;
 
     address public immutable i_owner;
     AggregatorV3Interface private s_priceFeed;
@@ -33,25 +33,25 @@ contract FundMe {
     function fund() public payable {
         // Convert sent ETH to USD and check if it meets minimum
         require(
-            msg.value.getConversionRate() >= MINIMUM_USD,
+            msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
             "Didn't send enough ETH!"
         );
-        funders.push(msg.sender);
-        addressToAmountFunded[msg.sender] += msg.value;
+        s_funders.push(msg.sender);
+        s_addressToAmountFunded[msg.sender] += msg.value;
     }
 
-    function getAggregatorVersion() public view returns(uint256) {
-        return PriceConverter.getVersion();
+    function getAggregatorVersion() public view returns (uint256) {
+        return PriceConverter.getVersion(s_priceFeed);
     }
 
     function withdraw() public onlyOwner {
         // resetting the funding amounts for all funders in an array
-        for (uint index = 0; index < funders.length; index++) {
-            address funder = funders[index];
-            addressToAmountFunded[funder] = 0;
+        for (uint index = 0; index < s_funders.length; index++) {
+            address funder = s_funders[index];
+            s_addressToAmountFunded[funder] = 0;
         }
         // reset the array
-        funders = new address[](0);
+        s_funders = new address[](0);
 
         // withraw the funds
 
@@ -75,5 +75,18 @@ contract FundMe {
 
     fallback() external payable {
         fund();
+    }
+
+    /**
+     * View / Pure fundtions (Getters)
+     */
+    function getAddressToAmountFunded(
+        address fundingAddress
+    ) external view returns (uint256) {
+        return s_addressToAmountFunded[fundingAddress];
+    }
+    
+    function getFunder(uint256 index) external view returns (address) {
+        return s_funders[index];
     }
 }
