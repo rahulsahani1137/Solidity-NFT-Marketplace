@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {PriceConverter} from "src/PriceConverter.sol";
+import {PriceConverter, AggregatorV3Interface} from "src/PriceConverter.sol";
 
 error FundMe_NotOwner();
 
@@ -15,9 +15,11 @@ contract FundMe {
         public addressToAmountFunded;
 
     address public immutable i_owner;
+    AggregatorV3Interface private s_priceFeed;
 
-    constructor() {
+    constructor(address priceFeed) {
         i_owner = msg.sender;
+        s_priceFeed = AggregatorV3Interface(priceFeed);
     }
 
     modifier onlyOwner() {
@@ -36,6 +38,10 @@ contract FundMe {
         );
         funders.push(msg.sender);
         addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function getAggregatorVersion() public view returns(uint256) {
+        return PriceConverter.getVersion();
     }
 
     function withdraw() public onlyOwner {
@@ -57,8 +63,9 @@ contract FundMe {
         // require(sendSuccess, "Send Failed!");
 
         // call
-        (bool callSuccess, ) = payable(msg.sender)
-            .call{value: address(this).balance}("");
+        (bool callSuccess, ) = payable(msg.sender).call{
+            value: address(this).balance
+        }("");
         require(callSuccess, "Call Failed!");
     }
 
